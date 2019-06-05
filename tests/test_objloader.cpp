@@ -4,6 +4,9 @@
 #include "al2o3_vfile/vfile.hpp"
 #include "al2o3_catch2/catch2.hpp"
 #include "gfx_meshmod/mesh.h"
+#include "gfx_meshmod/vertex/position.h"
+#include "gfx_meshmod/edge/halfedge.h"
+#include "gfx_meshmod/polygon/tribrep.h"
 #include "gfx_meshmodio/io.h"
 
 
@@ -35,5 +38,18 @@ static MeshMod_MeshHandle TestLoadObj(const char* filename) {
 TEST_CASE("cube", "[MeshModIO ObjLoader]") {
 	MeshMod_MeshHandle mesh =  TestLoadObj("cube.obj");
 	REQUIRE(mesh);
+
+	auto vertices = MeshMod_MeshGetVertices(mesh);
+	auto edges = MeshMod_MeshGetEdges(mesh);
+	auto polygons = MeshMod_MeshGetPolygons(mesh);
+	REQUIRE(MeshMod_DataContainerSize(vertices) == 36);
+	REQUIRE(MeshMod_DataContainerSize(edges) == 36);
+	REQUIRE(MeshMod_DataContainerSize(polygons) == 12);
+
+	CADT_VectorHandle triBRepVector = MeshMod_DataContainerVectorLookup(polygons, MeshMod_PolygonTriBRepTag);
+	auto triBRepData = (MeshMod_PolygonTriBRep*)CADT_VectorAt(triBRepVector, 0);
+	REQUIRE(triBRepData[0].edge[0] == 0);
+	REQUIRE(triBRepData[0].edge[1] == 1);
+	REQUIRE(triBRepData[0].edge[2] == 2);
 	MeshMod_MeshDestroy(mesh);
 }
