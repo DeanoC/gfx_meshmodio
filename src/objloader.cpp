@@ -18,6 +18,16 @@ AL2O3_EXTERN_C MeshMod_MeshHandle MeshModIO_LoadObjWithDefaultRegistry(VFile_Han
 
 AL2O3_EXTERN_C MeshMod_MeshHandle MeshModIO_LoadObj(MeshMod_RegistryHandle registry, VFile_Handle file) {
 
+#define FAILEXIT \
+	if (mesh != NULL) { MeshMod_MeshDestroy(mesh); } \
+	tinyobj_attrib_free(&attrib); \
+	tinyobj_materials_free(materials, numMaterials); \
+	tinyobj_shapes_free(shapes, numShapes); \
+	if (VFile_GetType(file) != VFile_Type_Memory) { \
+		MEMORY_TEMP_FREE(data); \
+	} \
+	return NULL;
+
 	char* data = NULL;
 	uint64_t dataLen = 0;
 	MeshMod_MeshHandle mesh = NULL;
@@ -39,7 +49,7 @@ AL2O3_EXTERN_C MeshMod_MeshHandle MeshModIO_LoadObj(MeshMod_RegistryHandle regis
 	unsigned int flags = TINYOBJ_FLAG_TRIANGULATE;
 	int ret = tinyobj_parse_obj(&attrib, &shapes, &numShapes, &materials,
 		&numMaterials, data, dataLen, flags);
-	if (ret != TINYOBJ_SUCCESS) { goto failexit; }
+	if (ret != TINYOBJ_SUCCESS) { FAILEXIT }
 
 	if (registry == NULL) {
 		mesh = MeshMod_MeshCreateWithDefaultRegistry(VFile_GetName(file));
@@ -47,7 +57,7 @@ AL2O3_EXTERN_C MeshMod_MeshHandle MeshModIO_LoadObj(MeshMod_RegistryHandle regis
 	else {
 		mesh = MeshMod_MeshCreate(registry, VFile_GetName(file));
 	}
-	if (mesh == NULL) { goto failexit; }
+	if (mesh == NULL) { FAILEXIT }
 
 	MeshMod_DataContainerHandle vertices = MeshMod_MeshGetVertices(mesh);
 	MeshMod_DataContainerHandle edges = MeshMod_MeshGetEdges(mesh);
@@ -116,15 +126,5 @@ AL2O3_EXTERN_C MeshMod_MeshHandle MeshModIO_LoadObj(MeshMod_RegistryHandle regis
 	}
 	return mesh;
 
-failexit:
-	if (mesh != NULL) { MeshMod_MeshDestroy(mesh); }
 
-	tinyobj_attrib_free(&attrib);
-	tinyobj_materials_free(materials, numMaterials);
-	tinyobj_shapes_free(shapes, numShapes);
-
-	if (VFile_GetType(file) != VFile_Type_Memory) {
-		MEMORY_TEMP_FREE(data);
-	}
-	return NULL;
 }

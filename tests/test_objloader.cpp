@@ -46,7 +46,7 @@ TEST_CASE("cube", "[MeshModIO ObjLoader]") {
 	REQUIRE(MeshMod_DataContainerSize(edges) == 36);
 	REQUIRE(MeshMod_DataContainerSize(polygons) == 12);
 
-	CADT_VectorHandle triBRepVector = MeshMod_DataContainerVectorLookup(polygons, MeshMod_PolygonTriBRepTag);
+	CADT_VectorHandle triBRepVector = MeshMod_DataContainerConstLookup(polygons, MeshMod_PolygonTriBRepTag);
 	auto triBRepData = (MeshMod_PolygonTriBRep*)CADT_VectorAt(triBRepVector, 0);
 	REQUIRE(triBRepData[0].edge[0] == 0);
 	REQUIRE(triBRepData[0].edge[1] == 1);
