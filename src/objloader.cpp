@@ -85,9 +85,9 @@ AL2O3_EXTERN_C MeshMod_MeshHandle MeshModIO_LoadObj(MeshMod_RegistryHandle regis
 	MeshMod_DataContainerResize(edges, (size_t)attrib.num_face_num_verts * 3);
 	MeshMod_DataContainerResize(polygons, attrib.num_face_num_verts);
 
-	Math_Vec3F_t* positionData = (Math_Vec3F_t*)CADT_VectorAt(positionVector, baseVertexIndex);
-	Math_Vec3F_t* normalData = (Math_Vec3F_t*)(normalVector ? CADT_VectorAt(normalVector, baseVertexIndex) : NULL);
-	Math_Vec2F_t* uvData = (Math_Vec2F_t*)(uvVector ? CADT_VectorAt(uvVector, baseVertexIndex) : NULL);
+	Math_Vec3F* positionData = (Math_Vec3F*)CADT_VectorAt(positionVector, baseVertexIndex);
+	Math_Vec3F* normalData = (Math_Vec3F*)(normalVector ? CADT_VectorAt(normalVector, baseVertexIndex) : NULL);
+	Math_Vec2F* uvData = (Math_Vec2F*)(uvVector ? CADT_VectorAt(uvVector, baseVertexIndex) : NULL);
 
 	MeshMod_EdgeHalfEdge* halfEdgeData = (MeshMod_EdgeHalfEdge*)CADT_VectorAt(halfEdgeVector, baseEdgeIndex);
 	MeshMod_PolygonTriBRep* triBRepData = (MeshMod_PolygonTriBRep*)CADT_VectorAt(triBRepVector, basePolygonIndex);
