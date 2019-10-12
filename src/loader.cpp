@@ -3,7 +3,7 @@
 #include "al2o3_vfile/vfile.hpp"
 #include "al2o3_syoyo/tiny_objloader.h"
 #include "utils_misccpp/compiletimehash.hpp"
-#include "gfx_meshmodio/io.h"
+#include "render_meshmodio/io.h"
 
 
 // try to figure out which format the file is in and load it

@@ -15,7 +15,7 @@ if(NOT hasParent)
 endif ()
 
 SET_MIN_VERSIONS()
-set(LibName gfx_meshmodio)
+set(LibName render_meshmodio)
 project(${LibName})
 
 set(Interface
@@ -35,7 +35,7 @@ set(Deps
 		al2o3_vfile
 		al2o3_stb
 		al2o3_syoyo
-		gfx_meshmod
+		render_meshmod
 		utils_misccpp
 		)
 ADD_LIB(${LibName} "${Interface}" "${Src}" "${Deps}")

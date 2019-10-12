@@ -4,13 +4,13 @@
 #include "al2o3_vfile/memory.h"
 #include "al2o3_syoyo/tiny_objloader.h"
 #include "utils_misccpp/compiletimehash.hpp"
-#include "gfx_meshmod/mesh.h"
-#include "gfx_meshmodio/io.h"
-#include "gfx_meshmod/vertex/position.h"
-#include "gfx_meshmod/vertex/normal.h"
-#include "gfx_meshmod/vertex/uv.h"
-#include "gfx_meshmod/edge/halfedge.h"
-#include "gfx_meshmod/polygon/tribrep.h"
+#include "render_meshmod/mesh.h"
+#include "render_meshmodio/io.h"
+#include "render_meshmod/vertex/position.h"
+#include "render_meshmod/vertex/normal.h"
+#include "render_meshmod/vertex/uv.h"
+#include "render_meshmod/edge/halfedge.h"
+#include "render_meshmod/polygon/tribrep.h"
 
 AL2O3_EXTERN_C MeshMod_MeshHandle MeshModIO_LoadObjWithDefaultRegistry(VFile_Handle file) {
 	return MeshModIO_LoadObj(NULL, file);
