@@ -8,5 +8,6 @@
 
 // try to figure out which format the file is in and load it
 AL2O3_EXTERN_C MeshMod_MeshHandle MeshModIO_Load(VFile_Handle handle) {
-	return NULL;
+	static MeshMod_MeshHandle const invalid = { 0 };
+	return invalid;
 }
