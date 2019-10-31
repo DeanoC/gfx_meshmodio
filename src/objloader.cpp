@@ -10,27 +10,27 @@
 #include "render_meshmod/vertex/normal.h"
 #include "render_meshmod/vertex/uv.h"
 #include "render_meshmod/edge/halfedge.h"
-#include "render_meshmod/polygon/tribrep.h"
+#include "render_meshmod/polygon/convexbrep.h"
 
 AL2O3_EXTERN_C MeshMod_MeshHandle MeshModIO_LoadObjWithDefaultRegistry(VFile_Handle file) {
-	return MeshModIO_LoadObj(NULL, file);
+	return MeshModIO_LoadObj({0}, file);
 }
 
 AL2O3_EXTERN_C MeshMod_MeshHandle MeshModIO_LoadObj(MeshMod_RegistryHandle registry, VFile_Handle file) {
 
 #define FAILEXIT \
-	if (mesh != NULL) { MeshMod_MeshDestroy(mesh); } \
+	MeshMod_MeshDestroy(mesh); \
 	tinyobj_attrib_free(&attrib); \
 	tinyobj_materials_free(materials, numMaterials); \
 	tinyobj_shapes_free(shapes, numShapes); \
 	if (VFile_GetType(file) != VFile_Type_Memory) { \
 		MEMORY_TEMP_FREE(data); \
 	} \
-	return NULL;
+	return {0};
 
 	char* data = NULL;
 	uint64_t dataLen = 0;
-	MeshMod_MeshHandle mesh = NULL;
+	MeshMod_MeshHandle mesh = {0};
 	tinyobj_attrib_t attrib;
 	tinyobj_shape_t* shapes = NULL;
 	size_t numShapes;
@@ -49,48 +49,26 @@ AL2O3_EXTERN_C MeshMod_MeshHandle MeshModIO_LoadObj(MeshMod_RegistryHandle regis
 	unsigned int flags = TINYOBJ_FLAG_TRIANGULATE;
 	int ret = tinyobj_parse_obj(&attrib, &shapes, &numShapes, &materials,
 		&numMaterials, data, dataLen, flags);
-	if (ret != TINYOBJ_SUCCESS) { FAILEXIT }
-
-	if (registry == NULL) {
-		mesh = MeshMod_MeshCreateWithDefaultRegistry(VFile_GetName(file));
+	if (ret != TINYOBJ_SUCCESS) {
+		FAILEXIT
 	}
-	else {
-		mesh = MeshMod_MeshCreate(registry, VFile_GetName(file));
+
+	mesh = MeshMod_MeshCreate(registry, VFile_GetName(file));
+	if (!MeshMod_MeshHandleIsValid(mesh ) )
+	{
+		FAILEXIT
 	}
-	if (mesh == NULL) { FAILEXIT }
 
-	MeshMod_DataContainerHandle vertices = MeshMod_MeshGetVertices(mesh);
-	MeshMod_DataContainerHandle edges = MeshMod_MeshGetEdges(mesh);
-	MeshMod_DataContainerHandle polygons = MeshMod_MeshGetPolygons(mesh);
+	MeshMod_MeshVertexTagEnsure(mesh, MeshMod_VertexPositionTag);
+	MeshMod_MeshEdgeTagEnsure(mesh, MeshMod_EdgeHalfEdgeTag);
+	MeshMod_MeshPolygonTagEnsure(mesh, MeshMod_PolygonConvexBRepTag);
 
-	CADT_VectorHandle positionVector = MeshMod_DataContainerAdd(vertices, MeshMod_VertexPositionTag);
-	CADT_VectorHandle halfEdgeVector = MeshMod_DataContainerAdd(edges, MeshMod_EdgeHalfEdgeTag);
-	CADT_VectorHandle triBRepVector = MeshMod_DataContainerAdd(polygons, MeshMod_PolygonTriBRepTag);
-
-	CADT_VectorHandle normalVector = NULL;
 	if (attrib.num_normals != 0) {
-		normalVector = MeshMod_DataContainerAdd(vertices, MeshMod_VertexNormalTag);
+		MeshMod_MeshVertexTagEnsure(mesh, MeshMod_VertexNormalTag);
 	}
-
-	CADT_VectorHandle uvVector = NULL;
 	if (attrib.num_texcoords != 0) {
-		uvVector = MeshMod_DataContainerAdd(vertices, MeshMod_VertexUvTag);
+		MeshMod_MeshVertexTagEnsure(mesh, MeshMod_VertexUvTag);
 	}
-
-	size_t const baseVertexIndex = MeshMod_DataContainerSize(vertices);
-	size_t const baseEdgeIndex = MeshMod_DataContainerSize(edges);
-	size_t const basePolygonIndex = MeshMod_DataContainerSize(polygons);
-
-	MeshMod_DataContainerResize(vertices, (size_t)attrib.num_face_num_verts * 3);
-	MeshMod_DataContainerResize(edges, (size_t)attrib.num_face_num_verts * 3);
-	MeshMod_DataContainerResize(polygons, attrib.num_face_num_verts);
-
-	Math_Vec3F* positionData = (Math_Vec3F*)CADT_VectorAt(positionVector, baseVertexIndex);
-	Math_Vec3F* normalData = (Math_Vec3F*)(normalVector ? CADT_VectorAt(normalVector, baseVertexIndex) : NULL);
-	Math_Vec2F* uvData = (Math_Vec2F*)(uvVector ? CADT_VectorAt(uvVector, baseVertexIndex) : NULL);
-
-	MeshMod_EdgeHalfEdge* halfEdgeData = (MeshMod_EdgeHalfEdge*)CADT_VectorAt(halfEdgeVector, baseEdgeIndex);
-	MeshMod_PolygonTriBRep* triBRepData = (MeshMod_PolygonTriBRep*)CADT_VectorAt(triBRepVector, basePolygonIndex);
 
 	// we deindex the data as obj have more complex indexing than
 	// meshmod does.
@@ -99,21 +77,40 @@ AL2O3_EXTERN_C MeshMod_MeshHandle MeshModIO_LoadObj(MeshMod_RegistryHandle regis
 	tinyobj_vertex_index_t* faces = attrib.faces;
 	for (size_t faceIndex = 0; faceIndex < attrib.num_face_num_verts; ++faceIndex) {
 
-		ASSERT(attrib.face_num_verts[faceIndex] == 3);
-		for (size_t i = 0; i < 3; ++i) {
+		MeshMod_PolygonHandle polygonHandle = MeshMod_MeshPolygonAlloc(mesh);
+		MeshMod_PolygonConvexBRep* brep = (MeshMod_PolygonConvexBRep*) MeshMod_MeshPolygonTagHandleToPtr(mesh,
+																																																		 MeshMod_PolygonConvexBRepTag,
+																																																		 polygonHandle);
 
+		uint8_t const faceCount = Math_MinU8((uint8_t)attrib.face_num_verts[faceIndex], MeshMod_PolygonConvexMaxEdges);
+		brep->numEdges = faceCount;
+
+		for (size_t i = 0; i < faceCount; ++i) {
 			tinyobj_vertex_index_t* v = faces + faceIndex + i;
-			memcpy(positionData + (faceIndex * 3) + i, attrib.vertices + v->v_idx, sizeof(float) * 3);
-			if (normalData) {
-				memcpy(normalData + (faceIndex * 3) + i, attrib.vertices + v->vn_idx, sizeof(float) * 3);
-			}
-			if (uvData) {
-				memcpy(uvData + (faceIndex * 3) + i, attrib.vertices + v->vt_idx, sizeof(float) * 2);
-			}
-			halfEdgeData[(faceIndex * 3) + i].vertex = faceIndex * 3 + i;
-			halfEdgeData[(faceIndex * 3) + i].polygon = faceIndex;
+			brep->edge[i] = MeshMod_MeshEdgeAlloc(mesh);
 
-			triBRepData[faceIndex].edge[i] = (faceIndex * 3) + i;
+			MeshMod_VertexHandle vhandle = MeshMod_MeshVertexAlloc(mesh);
+
+			MeshMod_EdgeHalfEdge* hedge = (MeshMod_EdgeHalfEdge*) MeshMod_MeshEdgeTagHandleToPtr(mesh,
+																																													 MeshMod_EdgeHalfEdgeTag,
+																																													 brep->edge[i]);
+			hedge->polygon = polygonHandle;
+			hedge->vertex = vhandle;
+
+			MeshMod_VertexPosition* pos = (MeshMod_VertexPosition*) MeshMod_MeshVertexTagHandleToPtr(mesh,
+																																															 MeshMod_VertexPositionTag,
+																																															 vhandle);
+			memcpy(pos, attrib.vertices + v->v_idx, sizeof(float) * 3);
+			if (attrib.num_normals != 0) {
+				MeshMod_VertexNormal* normal = (MeshMod_VertexNormal*) MeshMod_MeshVertexTagHandleToPtr(mesh,
+																																																MeshMod_VertexNormalTag,
+																																																vhandle);
+				memcpy(normal, attrib.vertices + v->vn_idx, sizeof(float) * 3);
+			}
+			if (attrib.num_texcoords != 0) {
+				MeshMod_VertexUv* uv =  (MeshMod_VertexUv*) MeshMod_MeshVertexTagHandleToPtr(mesh, MeshMod_VertexUvTag, vhandle);
+				memcpy(uv, attrib.vertices + v->vt_idx, sizeof(float) * 2);
+			}
 		}
 	}
 
